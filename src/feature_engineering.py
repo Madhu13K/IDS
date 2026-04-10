@@ -8,28 +8,52 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 DATA_PATH = os.path.join(BASE_DIR, "data", "raw", "normal_behavior.csv")
 PROCESSED_PATH = os.path.join(BASE_DIR, "data", "processed", "scaled_data.csv")
-SCALER_PATH = os.path.join(BASE_DIR, "models", "scaler.joblib")
+SCALER_PATH = os.path.join(BASE_DIR, "models", "scaler.pkl")
 
-# load dataset
+# -----------------------------
+# STEP 1: Load dataset
+# -----------------------------
 df = pd.read_csv(DATA_PATH)
 
-# features only (no labels)
-X = df.values
+# -----------------------------
+# STEP 2: Clean dataset (VERY IMPORTANT)
+# -----------------------------
 
-# scale features
+# remove duplicate header rows if present
+df = df[df["cpu_usage"] != "cpu_usage"]
+
+# convert everything to float
+df = df.astype(float)
+
+# -----------------------------
+# STEP 3: Feature Engineering (small improvement)
+# -----------------------------
+df["cpu_memory_ratio"] = df["cpu_usage"] / (df["memory_usage"] + 1e-5)
+
+# -----------------------------
+# STEP 4: Scaling
+# -----------------------------
 scaler = StandardScaler()
-X_scaled = scaler.fit_transform(X)
+X_scaled = scaler.fit_transform(df)
 
-# 🔹 NEW: make sure processed folder exists
+# -----------------------------
+# STEP 5: Save processed data
+# -----------------------------
 os.makedirs(os.path.dirname(PROCESSED_PATH), exist_ok=True)
 
-# 🔹 NEW: save scaled dataset
-pd.DataFrame(X_scaled).to_csv(PROCESSED_PATH, index=False)
+scaled_df = pd.DataFrame(X_scaled, columns=df.columns)
+scaled_df.to_csv(PROCESSED_PATH, index=False)
 
-# save scaler
+# -----------------------------
+# STEP 6: Save scaler
+# -----------------------------
+os.makedirs(os.path.dirname(SCALER_PATH), exist_ok=True)
 joblib.dump(scaler, SCALER_PATH)
 
-print("Feature scaling complete.")
-print("Scaled data shape:", X_scaled.shape)
-print("Scaled data saved at:", PROCESSED_PATH)
+# -----------------------------
+# DONE
+# -----------------------------
+print("✅ Feature engineering + scaling complete.")
+print("Shape:", X_scaled.shape)
+print("Saved at:", PROCESSED_PATH)
 print("Scaler saved at:", SCALER_PATH)
