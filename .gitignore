@@ -1,1 +1,5 @@
-git status
+data/
+models/
+*.csv
+*.joblib
+*.pkl
