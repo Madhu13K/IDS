@@ -6,7 +6,7 @@ import joblib
 # locate project root
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-DATA_PATH = os.path.join(BASE_DIR, "data", "raw", "normal_behavior.csv")
+DATA_PATH = os.path.join(BASE_DIR, "data", "raw", "combined_behavior.csv")
 PROCESSED_PATH = os.path.join(BASE_DIR, "data", "processed", "scaled_data.csv")
 SCALER_PATH = os.path.join(BASE_DIR, "models", "scaler.pkl")
 
@@ -21,6 +21,8 @@ df = pd.read_csv(DATA_PATH)
 
 # remove duplicate header rows if present
 df = df[df["cpu_usage"] != "cpu_usage"]
+if "machine_id" in df.columns:
+    df = df.drop(columns=["machine_id"])
 
 # convert everything to float
 df = df.astype(float)
