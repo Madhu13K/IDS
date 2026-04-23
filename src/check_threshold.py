@@ -1,3 +1,7 @@
+# LEGACY — superseded by train_model.py / collect_my_data.py
+# Do not run. Kept for development history only.
+raise SystemExit("Legacy file — not part of active pipeline.")
+
 import joblib, pandas as pd, numpy as np
 
 model  = joblib.load('models/ids_model.pkl')

@@ -1,0 +1,36 @@
+============================================================
+  IDS MODEL EVALUATION REPORT
+============================================================
+
+  Dataset
+    Normal (held-out 20%, never seen during training): 760
+    Anomaly (calibration data, second machine):        211
+    Total evaluated:                                   971
+
+  NOTE: Anomaly data is behavioral data from a second machine
+  with a distinct usage profile, used for threshold calibration.
+  Isolation Forest is unsupervised — it detects deviations from
+  learned normal behavior, not specific attack signatures.
+
+  Confusion Matrix
+    True  Negatives (correct normal)   : 755
+    False Positives (false alarms)      : 5
+    False Negatives (missed anomalies)  : 11
+    True  Positives (caught anomalies)  : 200
+
+  Performance Metrics
+    Precision : 0.9756  (of alerts raised, how many were real)
+    Recall    : 0.9479  (of anomalies, how many were caught)
+    F1 Score  : 0.9615  (harmonic mean of precision and recall)
+    ROC-AUC   : 0.9971  (separation between normal and anomaly distributions)
+
+    Threshold used: 0.02
+
+  Limitations
+    - Training data is from a single Windows machine (VS Code + Chrome workload)
+    - Anomaly data is a second machine's idle/active behavior, not attack data
+    - sudo_commands and failed_logins are 0 on Windows without pywin32
+    - process_spawn_rate is an approximation (new PIDs per second)
+    - Model may not generalise to server workloads or Linux environments
+
+============================================================

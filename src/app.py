@@ -5,12 +5,17 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 import psutil, joblib, os, numpy as np
 from datetime import datetime, timedelta
+import time
 
 app = Flask(__name__)
 CORS(app)
 
+# BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# Layout B — app.py is inside src/ (models/ is one level up):
+# BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 # ── Model loading ──────────────────────────────────────────────────────────────
-BASE_DIR  = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 model     = joblib.load(os.path.join(BASE_DIR, "models", "ids_model.pkl"))
 scaler    = joblib.load(os.path.join(BASE_DIR, "models", "scaler.pkl"))
 threshold = float(open(os.path.join(BASE_DIR, "models", "threshold.txt")).read().strip())
@@ -24,37 +29,73 @@ _last_proc_count = len(psutil.pids())
 _last_proc_t     = datetime.now()
 
 
-# ── Windows Event Log helper ───────────────────────────────────────────────────
-def get_windows_event_count(event_id: int, minutes: int = 1) -> int:
+# ── Platform-aware sudo/fail-login helper ─────────────────────────────────────
+def get_security_events():
     """
-    4625 → failed logon (failed_logins)
-    4672 → special privileges (sudo equivalent)
+    Windows: reads Security Event Log (requires pywin32).
+    Linux/Mac: reads /var/log/auth.log for the last 60 seconds.
+    Returns (sudo_count, failed_login_count).
     """
+    import platform
+    if platform.system() == "Windows":
+        return _windows_events()
+    else:
+        return _linux_events()
+
+
+def _windows_events():
     try:
         import win32evtlog
-        hand   = win32evtlog.OpenEventLog(None, "Security")
-        flags  = win32evtlog.EVENTLOG_BACKWARDS_READ | win32evtlog.EVENTLOG_SEQUENTIAL_READ
-        cutoff = datetime.now() - timedelta(minutes=minutes)
-        count  = 0
-        while True:
-            events = win32evtlog.ReadEventLog(hand, flags, 0)
-            if not events:
-                break
-            for ev in events:
-                ev_time = datetime(*ev.TimeGenerated.timetuple()[:6])
-                if ev_time < cutoff:
-                    win32evtlog.CloseEventLog(hand)
-                    return count
-                if ev.EventID & 0xFFFF == event_id:
-                    count += 1
-        win32evtlog.CloseEventLog(hand)
-        return count
+        from datetime import timedelta
+
+        def count_event(event_id):
+            hand   = win32evtlog.OpenEventLog(None, "Security")
+            flags  = (win32evtlog.EVENTLOG_BACKWARDS_READ |
+                      win32evtlog.EVENTLOG_SEQUENTIAL_READ)
+            cutoff = datetime.now() - timedelta(minutes=1)
+            count  = 0
+            while True:
+                events = win32evtlog.ReadEventLog(hand, flags, 0)
+                if not events:
+                    break
+                for ev in events:
+                    ev_time = datetime(*ev.TimeGenerated.timetuple()[:6])
+                    if ev_time < cutoff:
+                        win32evtlog.CloseEventLog(hand)
+                        return count
+                    if ev.EventID & 0xFFFF == event_id:
+                        count += 1
+            win32evtlog.CloseEventLog(hand)
+            return count
+
+        sudo = count_event(4672)   # special privileges assigned
+        fail = count_event(4625)   # failed logon
+        return sudo, fail
+
     except ImportError:
-        print("[WARN] pywin32 not installed. Run: pip install pywin32")
-        return 0
+        print("[WARN] pywin32 not installed — sudo/fail will be 0")
+        return 0, 0
     except Exception as e:
-        print(f"[WARN] Event Log error (event {event_id}): {e}")
-        return 0
+        print(f"[WARN] Windows Event Log error: {e}")
+        return 0, 0
+
+
+def _linux_events():
+    sudo, fail = 0, 0
+    try:
+        log_path = "/var/log/auth.log"
+        if not os.path.exists(log_path):
+            return 0, 0
+        cutoff = time.time() - 60
+        with open(log_path, "r", errors="ignore") as f:
+            for line in f:
+                if "sudo:" in line:
+                    sudo += 1
+                if "Failed password" in line or "authentication failure" in line:
+                    fail += 1
+    except PermissionError:
+        pass
+    return sudo, fail
 
 
 # ── /metrics — real-time data from THIS machine ────────────────────────────────
@@ -66,7 +107,7 @@ def metrics():
     mem  = psutil.virtual_memory().percent
     disk = psutil.disk_usage("/").percent
 
-    # net KB/s delta
+    # net KB/s delta — NOT cumulative bytes
     now         = datetime.now()
     current_net = psutil.net_io_counters().bytes_sent
     elapsed_net = (now - _last_net_t).total_seconds() or 1
@@ -82,9 +123,7 @@ def metrics():
     _last_proc_count = current_proc
     _last_proc_t     = now
 
-    # real Windows Event Log values
-    sudo = get_windows_event_count(event_id=4672, minutes=1)
-    fail = get_windows_event_count(event_id=4625, minutes=1)
+    sudo, fail = get_security_events()
 
     cpu_memory_ratio = cpu / (mem + 1e-5)
 

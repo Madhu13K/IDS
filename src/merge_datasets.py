@@ -17,7 +17,7 @@ import numpy as np
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 MY_DATA        = os.path.join(BASE_DIR, "src", "data", "raw", "my_normal_behavior.csv")
-FRIEND_ANOMALY = os.path.join(BASE_DIR, "src", "data", "raw", "friend_anamoly.csv")
+FRIEND_ANOMALY = os.path.join(BASE_DIR, "src", "data", "raw", "friend_anomaly.csv")
 
 OUT_COMBINED   = os.path.join(BASE_DIR, "data", "raw", "combined_behavior.csv")
 OUT_ANOMALY    = os.path.join(BASE_DIR, "data", "raw", "anomaly_for_calibration.csv")
@@ -123,7 +123,7 @@ print(f"    Saved → {OUT_COMBINED}")
 print("\n[4/4] Processing friend's anomaly data...")
 anomaly_count = 0
 if not os.path.exists(FRIEND_ANOMALY):
-    print(f"    [WARN] friend_anamoly.csv not found at:\n    {FRIEND_ANOMALY}")
+    print(f"    [WARN] friend_anomaly.csv not found at:\n    {FRIEND_ANOMALY}")
     print("    Skipping — add the file and re-run this script.")
 else:
     anomaly = pd.read_csv(FRIEND_ANOMALY)

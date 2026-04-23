@@ -1,3 +1,6 @@
+# LEGACY — superseded by train_model.py / collect_my_data.py
+# Do not run. Kept for development history only.
+raise SystemExit("Legacy file — not part of active pipeline.")
 import pandas as pd
 import os
 import joblib
